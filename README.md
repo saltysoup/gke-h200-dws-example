@@ -311,11 +311,87 @@ EOF
 kubectl apply -f https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/refs/heads/master/gpudirect-rdma/nccl-rdma-installer.yaml
 ```
 
-8. Install Kueue to automate scheduling of jobs with DWS flex start provisioned VMs. Although it is possible to use queued provisioning without Kueue, it requires using your own scheduling tool to create and manage the Provisioning Request (which sends DWS API for node creation)
+8. Install Kueue to automate scheduling of jobs with DWS flex start provisioned VMs. Although it is possible to use queued provisioning without Kueue, it requires using your own scheduling tool to create and manage the Provisioning Request (which sends DWS API for node creation). Ref https://cloud.google.com/kubernetes-engine/docs/how-to/provisioningrequest#prepare_your_environment
 
 ```
-VERSION=v0.12.0
+VERSION=v0.11.4
 kubectl apply --server-side -f https://github.com/kubernetes-sigs/kueue/releases/download/$VERSION/manifests.yaml
 ```
 
-. Deploy an example NCCL test to verify that the RDMA network is being used between the GPU VMs
+9. Create Kueue resources including a cluster-level queue called `dws-cluster-queue` and a localqueue namespace `dws-local-queue`. Jobs that refer to `dws-cluster-queue` will use flex-start to get the GPU resources. 
+
+```
+kubectl apply -f - <<EOF
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ResourceFlavor
+metadata:
+  name: "default-flavor"
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: AdmissionCheck
+metadata:
+  name: dws-prov
+spec:
+  controllerName: kueue.x-k8s.io/provisioning-request
+  parameters:
+    apiGroup: kueue.x-k8s.io
+    kind: ProvisioningRequestConfig
+    name: dws-config
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ProvisioningRequestConfig
+metadata:
+  name: dws-config
+spec:
+  provisioningClassName: queued-provisioning.gke.io
+  managedResources:
+  - nvidia.com/gpu
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ClusterQueue
+metadata:
+  name: "dws-cluster-queue"
+spec:
+  namespaceSelector: {}
+  resourceGroups:
+  - coveredResources: ["cpu", "memory", "nvidia.com/gpu", "ephemeral-storage"]
+    flavors:
+    - name: "default-flavor"
+      resources:
+      - name: "cpu"
+        nominalQuota: 1000000000    # "Infinite" quota
+      - name: "memory"
+        nominalQuota: 1000000000Gi  # "Infinite" quota
+      - name: "nvidia.com/gpu"
+        nominalQuota: 1000000000    # "Infinite" quota
+      - name: "ephemeral-storage"
+        nominalQuota: 1000000000Ti  # "Infinite" quota
+  admissionChecks:
+  - dws-prov
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: LocalQueue
+metadata:
+  namespace: "default"
+  name: "dws-local-queue"
+spec:
+  clusterQueue: "dws-cluster-queue"
+---
+EOF
+
+```
+
+You should see an output similar to following
+```
+resourceflavor.kueue.x-k8s.io/default-flavor created
+admissioncheck.kueue.x-k8s.io/dws-prov created
+provisioningrequestconfig.kueue.x-k8s.io/dws-config created
+clusterqueue.kueue.x-k8s.io/dws-cluster-queue created
+localqueue.kueue.x-k8s.io/dws-local-queue created
+```
+
+10. Deploy an example NCCL test to verify that the RDMA network is being used between the GPU VMs
+
+```
+kubectl apply -f https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/refs/heads/master/gpudirect-rdma/nccl-test.yaml
+```
