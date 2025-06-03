@@ -90,7 +90,8 @@ gcloud container clusters create $CLUSTER_NAME \
 
 ```
 gcloud container node-pools create $NODE_POOL_NAME \
-  --region COMPUTE_REGION --cluster $CLUSTER_NAME \
+  --region $REGION \
+  --cluster $CLUSTER_NAME \
   --node-locations $ZONE \
   --accelerator type=$GPU_TYPE,count=$AMOUNT,gpu-driver-version=$DRIVER_VERSION \
   --machine-type $MACHINE_TYPE \
@@ -113,7 +114,7 @@ gcloud container node-pools create $NODE_POOL_NAME \
 
 5. Once provisioned, connect to your cluster to run `kubectl` commands to configure the GKE cluster
 ```
-gcloud container clusters get-credentials $CLUSTER_NAME --location=$COMPUTE_REGION
+gcloud container clusters get-credentials $CLUSTER_NAME --location=$REGION
 ```
 
 6. Create the GKE network objects, which will allow k8 jobs to use the RDMA NICs
