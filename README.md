@@ -23,7 +23,8 @@ export ZONE="us-east4-b"
 export PROJECT="gpu-launchpad-playground"
 export GVNIC_NETWORK_PREFIX="a3u-gvnic"
 export RDMA_NETWORK_PREFIX="a3u-rdma"
-export CLUSTER_NAME="injae-h200-dws"
+export GKE_VERSION="1.32.2-gke.1652000"
+export CLUSTER_NAME="injae-h200-dws1"
 export NODEPOOL_NAME="h200-dws"
 export GPU_TYPE="nvidia-h200-141gb"
 export AMOUNT=8 # Number of GPUs to attach per VM
@@ -81,7 +82,7 @@ done
 # Check minimum GKE version for accelerators here - https://cloud.google.com/ai-hypercomputer/docs/create/gke-ai-hypercompute-custom#requirements
 gcloud container clusters create $CLUSTER_NAME \
   --region=us-east4 \
-  --cluster-version=1.31.7-gke.1390000 \
+  --cluster-version=$GKE_VERSION \
   --enable-dataplane-v2 --enable-ip-alias --enable-multi-networking
 
 ```
@@ -89,7 +90,7 @@ gcloud container clusters create $CLUSTER_NAME \
 4. Create a node pool with DWS flex-start provisioning and queued provisioning enabled (latter provides atomic, gang scheduling of nodes to avoid idle GPU waste) 
 
 ```
-gcloud container node-pools create $NODE_POOL_NAME \
+gcloud container node-pools create $NODEPOOL_NAME \
   --region $REGION \
   --cluster $CLUSTER_NAME \
   --node-locations $ZONE \
