@@ -19,7 +19,7 @@ To enable efficient distributed training on a3 ultragpu VMs (H200 GPUs) on GCP, 
 
 ```
 export REGION="us-east4"
-export ZONE="us-east4-"b
+export ZONE="us-east4-b"
 export PROJECT="gpu-launchpad-playground"
 export GVNIC_NETWORK_PREFIX="a3u-gvnic"
 export RDMA_NETWORK_PREFIX="a3u-rdma"
@@ -91,7 +91,7 @@ gcloud container clusters create $CLUSTER_NAME \
 ```
 gcloud container node-pools create $NODE_POOL_NAME \
   --region COMPUTE_REGION --cluster $CLUSTER_NAME \
-  --node-locations $COMPUTE_ZONE \
+  --node-locations $ZONE \
   --accelerator type=$GPU_TYPE,count=$AMOUNT,gpu-driver-version=$DRIVER_VERSION \
   --machine-type $MACHINE_TYPE \
   --num-nodes=$NUM_NODES \
@@ -116,3 +116,204 @@ gcloud container node-pools create $NODE_POOL_NAME \
 gcloud container clusters get-credentials $CLUSTER_NAME --location=$COMPUTE_REGION
 ```
 
+6. Create the GKE network objects, which will allow k8 jobs to use the RDMA NICs
+
+```
+kubectl apply -f - <<EOF
+apiVersion: networking.gke.io/v1
+kind: GKENetworkParamSet
+metadata:
+  name: gvnic-1
+spec:
+  vpc: ${GVNIC_NETWORK_PREFIX}-net
+  vpcSubnet: ${GVNIC_NETWORK_PREFIX}-sub
+  deviceMode: NetDevice
+---
+apiVersion: networking.gke.io/v1
+kind: Network
+metadata:
+  name: gvnic-1
+spec:
+  type: "Device"
+  parametersRef:
+    group: networking.gke.io
+    kind: GKENetworkParamSet
+    name: gvnic-1
+---
+apiVersion: networking.gke.io/v1
+kind: GKENetworkParamSet
+metadata:
+  name: rdma-0
+spec:
+  vpc: ${RDMA_NETWORK_PREFIX}-net
+  vpcSubnet: ${RDMA_NETWORK_PREFIX}-sub-0
+  deviceMode: RDMA
+---
+apiVersion: networking.gke.io/v1
+kind: Network
+metadata:
+  name: rdma-0
+spec:
+  type: "Device"
+  parametersRef:
+    group: networking.gke.io
+    kind: GKENetworkParamSet
+    name: rdma-0
+---
+apiVersion: networking.gke.io/v1
+kind: GKENetworkParamSet
+metadata:
+  name: rdma-1
+spec:
+  vpc: ${RDMA_NETWORK_PREFIX}-net
+  vpcSubnet: ${RDMA_NETWORK_PREFIX}-sub-1
+  deviceMode: RDMA
+---
+apiVersion: networking.gke.io/v1
+kind: Network
+metadata:
+  name: rdma-1
+spec:
+  type: "Device"
+  parametersRef:
+    group: networking.gke.io
+    kind: GKENetworkParamSet
+    name: rdma-1
+---
+apiVersion: networking.gke.io/v1
+kind: GKENetworkParamSet
+metadata:
+  name: rdma-2
+spec:
+  vpc: ${RDMA_NETWORK_PREFIX}-net
+  vpcSubnet: ${RDMA_NETWORK_PREFIX}-sub-2
+  deviceMode: RDMA
+---
+apiVersion: networking.gke.io/v1
+kind: Network
+metadata:
+  name: rdma-2
+spec:
+  type: "Device"
+  parametersRef:
+    group: networking.gke.io
+    kind: GKENetworkParamSet
+    name: rdma-2
+---
+apiVersion: networking.gke.io/v1
+kind: GKENetworkParamSet
+metadata:
+  name: rdma-3
+spec:
+  vpc: ${RDMA_NETWORK_PREFIX}-net
+  vpcSubnet: ${RDMA_NETWORK_PREFIX}-sub-3
+  deviceMode: RDMA
+---
+apiVersion: networking.gke.io/v1
+kind: Network
+metadata:
+  name: rdma-3
+spec:
+  type: "Device"
+  parametersRef:
+    group: networking.gke.io
+    kind: GKENetworkParamSet
+    name: rdma-3
+---
+apiVersion: networking.gke.io/v1
+kind: GKENetworkParamSet
+metadata:
+  name: rdma-4
+spec:
+  vpc: ${RDMA_NETWORK_PREFIX}-net
+  vpcSubnet: ${RDMA_NETWORK_PREFIX}-sub-4
+  deviceMode: RDMA
+---
+apiVersion: networking.gke.io/v1
+kind: Network
+metadata:
+  name: rdma-4
+spec:
+  type: "Device"
+  parametersRef:
+    group: networking.gke.io
+    kind: GKENetworkParamSet
+    name: rdma-4
+---
+apiVersion: networking.gke.io/v1
+kind: GKENetworkParamSet
+metadata:
+  name: rdma-5
+spec:
+  vpc: ${RDMA_NETWORK_PREFIX}-net
+  vpcSubnet: ${RDMA_NETWORK_PREFIX}-sub-5
+  deviceMode: RDMA
+---
+apiVersion: networking.gke.io/v1
+kind: Network
+metadata:
+  name: rdma-5
+spec:
+  type: "Device"
+  parametersRef:
+    group: networking.gke.io
+    kind: GKENetworkParamSet
+    name: rdma-5
+---
+apiVersion: networking.gke.io/v1
+kind: GKENetworkParamSet
+metadata:
+  name: rdma-6
+spec:
+  vpc: ${RDMA_NETWORK_PREFIX}-net
+  vpcSubnet: ${RDMA_NETWORK_PREFIX}-sub-6
+  deviceMode: RDMA
+---
+apiVersion: networking.gke.io/v1
+kind: Network
+metadata:
+  name: rdma-6
+spec:
+  type: "Device"
+  parametersRef:
+    group: networking.gke.io
+    kind: GKENetworkParamSet
+    name: rdma-6
+---
+apiVersion: networking.gke.io/v1
+kind: GKENetworkParamSet
+metadata:
+  name: rdma-7
+spec:
+  vpc: ${RDMA_NETWORK_PREFIX}-net
+  vpcSubnet: ${RDMA_NETWORK_PREFIX}-sub-7
+  deviceMode: RDMA
+---
+apiVersion: networking.gke.io/v1
+kind: Network
+metadata:
+  name: rdma-7
+spec:
+  type: "Device"
+  parametersRef:
+    group: networking.gke.io
+    kind: GKENetworkParamSet
+    name: rdma-7
+EOF
+```
+
+7. Install the RDMA binary and configure NCCL
+
+```
+# For GKE standard cluster
+kubectl apply -f https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/refs/heads/master/gpudirect-rdma/nccl-rdma-installer.yaml
+```
+
+8. Install Kueue to automate scheduling of jobs with DWS flex start provisioned VMs. Although it is possible to use queued provisioning without Kueue, it requires using your own scheduling tool to create and manage the Provisioning Request (which sends DWS API for node creation)
+
+```
+VERSION=v0.12.0
+kubectl apply --server-side -f https://github.com/kubernetes-sigs/kueue/releases/download/$VERSION/manifests.yaml
+```
+
+. Deploy an example NCCL test to verify that the RDMA network is being used between the GPU VMs
