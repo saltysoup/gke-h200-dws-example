@@ -333,7 +333,13 @@ clusterqueue.kueue.x-k8s.io/dws-cluster-queue created
 localqueue.kueue.x-k8s.io/dws-local-queue created
 ```
 
-10. Deploy an example NCCL test to verify that the RDMA network is being used between the GPU VMs
+10. Create a local dummy service to allow pods to share DNS domain for running NCCL test (alternatively can use hostNetwork or enableDNSHostnames) 
+
+```
+kubectl apply -f nccl-service.yaml
+```
+
+11. Deploy an example NCCL test to verify that the RDMA network is being used between the GPU VMs
 
 ```
 kubectl apply -f nccl-dws-example.yaml

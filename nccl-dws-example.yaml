@@ -45,7 +45,7 @@ spec:
         operator: "Exists"
         effect: "NoSchedule"
       setHostnameAsFQDN: true
-      subdomain: nccl-dws-headless-service
+      subdomain: nccl-svc
       volumes:
       - name: gib
         hostPath:
