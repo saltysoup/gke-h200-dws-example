@@ -321,64 +321,7 @@ kubectl apply --server-side -f https://github.com/kubernetes-sigs/kueue/releases
 9. Create Kueue resources including a cluster-level queue called `dws-cluster-queue` and a localqueue namespace `dws-local-queue`. Jobs that refer to `dws-cluster-queue` will use flex-start to get the GPU resources. 
 
 ```
-kubectl apply -f - <<EOF
-apiVersion: kueue.x-k8s.io/v1beta1
-kind: ResourceFlavor
-metadata:
-  name: "default-flavor"
----
-apiVersion: kueue.x-k8s.io/v1beta1
-kind: AdmissionCheck
-metadata:
-  name: dws-prov
-spec:
-  controllerName: kueue.x-k8s.io/provisioning-request
-  parameters:
-    apiGroup: kueue.x-k8s.io
-    kind: ProvisioningRequestConfig
-    name: dws-config
----
-apiVersion: kueue.x-k8s.io/v1beta1
-kind: ProvisioningRequestConfig
-metadata:
-  name: dws-config
-spec:
-  provisioningClassName: queued-provisioning.gke.io
-  managedResources:
-  - nvidia.com/gpu
----
-apiVersion: kueue.x-k8s.io/v1beta1
-kind: ClusterQueue
-metadata:
-  name: "dws-cluster-queue"
-spec:
-  namespaceSelector: {}
-  resourceGroups:
-  - coveredResources: ["cpu", "memory", "nvidia.com/gpu", "ephemeral-storage"]
-    flavors:
-    - name: "default-flavor"
-      resources:
-      - name: "cpu"
-        nominalQuota: 1000000000    # "Infinite" quota
-      - name: "memory"
-        nominalQuota: 1000000000Gi  # "Infinite" quota
-      - name: "nvidia.com/gpu"
-        nominalQuota: 1000000000    # "Infinite" quota
-      - name: "ephemeral-storage"
-        nominalQuota: 1000000000Ti  # "Infinite" quota
-  admissionChecks:
-  - dws-prov
----
-apiVersion: kueue.x-k8s.io/v1beta1
-kind: LocalQueue
-metadata:
-  namespace: "default"
-  name: "dws-local-queue"
-spec:
-  clusterQueue: "dws-cluster-queue"
----
-EOF
-
+kubectl apply -f kueue-dws-queues.yaml
 ```
 
 You should see an output similar to following
@@ -393,5 +336,37 @@ localqueue.kueue.x-k8s.io/dws-local-queue created
 10. Deploy an example NCCL test to verify that the RDMA network is being used between the GPU VMs
 
 ```
-kubectl apply -f https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/refs/heads/master/gpudirect-rdma/nccl-test.yaml
+kubectl apply -f nccl-dws-example.yaml
 ```
+
+once you submit the job, you'll notice that the job is in a suspended state. This will automatically unsuspend and begin once the nodes are provisioned and ready for the workload pods
+
+```
+Events:
+  Type    Reason                 Age    From                        Message
+  ----    ------                 ----   ----                        -------
+  Normal  Suspended              6m35s  job-controller              Job suspended
+  Normal  CreatedWorkload        6m35s  batch/job-kueue-controller  Created Workload: default/job-nccl-dws-job-1dc1f
+  Normal  UpdatedAdmissionCheck  6m9s   batch/job-kueue-controller  dws-prov: Waiting for resources. Currently there are not enough resources available to fulfill the request.
+  Normal  Started                3m14s  batch/job-kueue-controller  Admitted by clusterQueue dws-cluster-queue
+  Normal  SuccessfulCreate       3m14s  job-controller              Created pod: nccl-dws-job-vlz6t
+  Normal  SuccessfulCreate       3m14s  job-controller              Created pod: nccl-dws-job-9v2k7
+  Normal  Resumed                3m14s  job-controller              Job resumed
+```
+
+```
+# You can optionally check provision request to query DWS has accepted/rejected the flex start request
+kubectl get provreq
+NAME                                ACCEPTED   PROVISIONED   FAILED   AGE
+job-nccl-dws-job-1dc1f-dws-prov-1   True       True                   7m18s
+```
+
+After node scales up, the workload pod will run
+
+```
+NAME                 READY   STATUS              RESTARTS   AGE
+nccl-dws-job-9v2k7   0/1     ContainerCreating   0          6m41s
+nccl-dws-job-vlz6t   0/1     ContainerCreating   0          6m41s
+```
+
+
