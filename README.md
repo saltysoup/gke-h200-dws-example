@@ -94,7 +94,7 @@ gcloud container node-pools create $NODEPOOL_NAME \
   --region $REGION \
   --cluster $CLUSTER_NAME \
   --node-locations $ZONE \
-  --accelerator type=$GPU_TYPE,count=$AMOUNT,gpu-driver-version=$DRIVER_VERSION \
+  --accelerator-type=$GPU_TYPE,count=$AMOUNT,gpu-driver-version=$DRIVER_VERSION \
   --machine-type $MACHINE_TYPE \
   --num-nodes=$NUM_NODES \
   --flex-start --num-nodes=0 --enable-autoscaling \
