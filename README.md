@@ -81,7 +81,7 @@ done
 ```
 # Check minimum GKE version for accelerators here - https://cloud.google.com/ai-hypercomputer/docs/create/gke-ai-hypercompute-custom#requirements
 gcloud container clusters create $CLUSTER_NAME \
-  --region=us-east4 \
+  --region=$REGION \
   --cluster-version=$GKE_VERSION \
   --enable-dataplane-v2 --enable-ip-alias --enable-multi-networking
 
